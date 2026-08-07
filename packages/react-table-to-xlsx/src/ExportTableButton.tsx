@@ -9,7 +9,7 @@ export interface ExportTableButtonProps<T extends Record<string, any>> {
   /** Optional column definitions used only with `data`. */
   columns?: ExportColumn<T>[];
   /** Ref to a rendered <table> element. Takes priority over `data`. */
-  tableRef?: RefObject<HTMLTableElement>;
+  tableRef?: RefObject<HTMLTableElement | null>;
   /** Output file name, e.g. "report.xlsx". */
   fileName?: string;
   /** Worksheet tab name. */

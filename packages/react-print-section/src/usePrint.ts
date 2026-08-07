@@ -26,7 +26,7 @@ export function usePrint<T extends HTMLElement = HTMLDivElement>(options?: Print
   );
 
   return { targetRef, print } as {
-    targetRef: RefObject<T>;
+    targetRef: RefObject<T | null>;
     print: (overrides?: PrintOptions) => Promise<void>;
   };
 }

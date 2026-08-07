@@ -8,7 +8,7 @@ export interface UseExportTableToExcelOptions<T extends Record<string, any>> {
   /** Optional column definitions used only with `data`. */
   columns?: ExportColumn<T>[];
   /** Ref to a rendered <table> element. Takes priority over `data` when set. */
-  tableRef?: RefObject<HTMLTableElement>;
+  tableRef?: RefObject<HTMLTableElement | null>;
   /** Default output file name. */
   fileName?: string;
   /** Default worksheet name. */

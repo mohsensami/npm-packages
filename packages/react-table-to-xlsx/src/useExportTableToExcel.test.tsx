@@ -32,7 +32,7 @@ describe('useExportTableToExcel', () => {
   it('prefers a mounted tableRef over data when both are provided', () => {
     const tableEl = document.createElement('table');
     const tableRef = createRef<HTMLTableElement>();
-    // @ts-expect-error assigning to a readonly ref for test purposes
+    // React 19: RefObject.current is mutable, no cast/expect-error needed
     tableRef.current = tableEl;
 
     const { result } = renderHook(() =>

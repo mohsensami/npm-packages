@@ -23,7 +23,7 @@ describe('usePrint', () => {
     const { result } = renderHook(() => usePrint({ documentTitle: 'Invoice' }));
 
     const el = document.createElement('div');
-    // @ts-expect-error assigning to a readonly ref for test purposes
+    // React 19: RefObject.current is mutable, no cast/expect-error needed
     result.current.targetRef.current = el;
 
     await result.current.print({ margin: '5mm' });

@@ -5,7 +5,7 @@ import type { PrintOptions } from './types';
 
 export interface PrintButtonProps extends PrintOptions {
   /** Ref to the element you want printed. */
-  targetRef: RefObject<HTMLElement>;
+  targetRef: RefObject<HTMLElement | null>;
   children?: ReactNode;
   className?: string;
   disabled?: boolean;

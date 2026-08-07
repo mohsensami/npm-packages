@@ -1,9 +1,14 @@
+import { PrintSectionDemo } from './PrintSectionDemo'
+import { TableToXlsxDemo } from './TableToXlsxDemo'
+
 export default function App() {
   return (
-    <main style={{ padding: 32, fontFamily: 'sans-serif' }}>
-      <h1>react-table-to-xlsx</h1>
-      <p>This playground consumes the local workspace package.</p>
-      <p>Replace this component with the package's real usage examples.</p>
+    <main style={{ padding: 32, fontFamily: 'sans-serif', maxWidth: 640, margin: '0 auto' }}>
+      <h1>Package examples</h1>
+      <p>This playground consumes the local workspace packages via npm workspaces.</p>
+
+      <PrintSectionDemo />
+      <TableToXlsxDemo />
     </main>
   )
 }
