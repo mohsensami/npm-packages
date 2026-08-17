@@ -36,4 +36,32 @@ export interface PrintOptions {
 
   /** Called after the print dialog has closed (or after `cleanupDelay` as a fallback). */
   onAfterPrint?: () => void;
+
+  /**
+   * By default every `<canvas>` inside the printed section (charts from
+   * Chart.js, react-chartjs-2, ApexCharts' canvas renderer, etc.) is
+   * snapshotted with `toDataURL()` and swapped for an `<img>` in the print
+   * document, because `cloneNode()` alone never copies a canvas's drawn
+   * pixels — that's why charts used to print blank. Set this to `false` to
+   * skip snapshotting (e.g. if you already handle it yourself).
+   */
+  snapshotCanvases?: boolean;
+
+  /**
+   * One or more extra class names (space separated) added to the cloned
+   * print root, on top of the always-present `rps-print` class. Use this
+   * together with a normal (copied-in) stylesheet rule to style the print
+   * output without having to write a `pageStyle` string every time, e.g.
+   * `.rps-print.invoice { padding: 24px; }`.
+   */
+  printClassName?: string;
+
+  /**
+   * The library injects a tiny, unopinionated print reset scoped to
+   * `.rps-print` (box-sizing, print-color-adjust so backgrounds/colors
+   * actually print, and `max-width: 100%` for images/canvas-snapshots/SVGs
+   * so charts don't overflow the page). Set to `true` to skip it entirely
+   * and rely only on your own styles.
+   */
+  disableDefaultStyles?: boolean;
 }

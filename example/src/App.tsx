@@ -1,4 +1,5 @@
 import { PrintSectionDemo } from './PrintSectionDemo'
+import { PrintChartsDemo } from './PrintChartsDemo'
 import { TableToXlsxDemo } from './TableToXlsxDemo'
 
 export default function App() {
@@ -8,6 +9,7 @@ export default function App() {
       <p>This playground consumes the local workspace packages via npm workspaces.</p>
 
       <PrintSectionDemo />
+      <PrintChartsDemo />
       <TableToXlsxDemo />
     </main>
   )

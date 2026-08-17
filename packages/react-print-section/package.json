@@ -1,6 +1,6 @@
 {
   "name": "@mohsensami/react-print-section",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Print any section of a React page with the exact fonts and styles it has on screen. Zero runtime dependencies.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

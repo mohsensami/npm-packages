@@ -119,6 +119,107 @@ describe('printElement', () => {
     const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
     expect(iframe.contentDocument?.body.textContent).toContain('Printable content');
   });
+
+  it('adds the rps-print class (and any printClassName) to the cloned root', async () => {
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+
+    await printElement(target, { printClassName: 'invoice compact', cleanupDelay: 0 });
+
+    const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    const root = iframe.contentDocument?.body.firstElementChild;
+    expect(root?.classList.contains('rps-print')).toBe(true);
+    expect(root?.classList.contains('invoice')).toBe(true);
+    expect(root?.classList.contains('compact')).toBe(true);
+  });
+
+  it('injects the default print reset unless disableDefaultStyles is set', async () => {
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+
+    await printElement(target, { cleanupDelay: 0 });
+    const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    const styles = Array.from(iframe.contentDocument?.head.querySelectorAll('style') ?? [])
+      .map((s) => s.textContent)
+      .join('\n');
+    expect(styles).toContain('.rps-print');
+
+    await printElement(target, { disableDefaultStyles: true, cleanupDelay: 0 });
+    const iframe2 = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    const styles2 = Array.from(iframe2.contentDocument?.head.querySelectorAll('style') ?? [])
+      .map((s) => s.textContent)
+      .join('\n');
+    expect(styles2).not.toContain('.rps-print');
+  });
+
+  it('replaces a canvas chart with an <img> snapshot so it survives cloning', async () => {
+    const target = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 150;
+    canvas.className = 'my-chart';
+    // jsdom has no real 2D rendering backend; simulate what a real browser's
+    // toDataURL() would return for a drawn chart.
+    canvas.toDataURL = vi.fn(() => 'data:image/png;base64,FAKECHARTDATA');
+    target.appendChild(canvas);
+    document.body.appendChild(target);
+
+    // jsdom never actually fetches image `src`s, so it never fires
+    // load/error for the snapshot <img> either — unlike a real browser.
+    // Report it as already-loaded so printElement's "wait for images"
+    // step doesn't hang.
+    const completeDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'complete');
+    Object.defineProperty(HTMLImageElement.prototype, 'complete', {
+      configurable: true,
+      get: () => true,
+    });
+
+    try {
+      await printElement(target, { cleanupDelay: 0 });
+    } finally {
+      if (completeDescriptor) {
+        Object.defineProperty(HTMLImageElement.prototype, 'complete', completeDescriptor);
+      }
+    }
+
+    const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    const clonedCanvas = iframe.contentDocument?.querySelector('canvas');
+    const clonedImg = iframe.contentDocument?.querySelector('img');
+    expect(clonedCanvas).toBeNull();
+    expect(clonedImg).not.toBeNull();
+    expect(clonedImg?.getAttribute('src')).toBe('data:image/png;base64,FAKECHARTDATA');
+    expect(clonedImg?.className).toBe('my-chart');
+  });
+
+  it('leaves the canvas untouched when snapshotCanvases is false', async () => {
+    const target = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.toDataURL = vi.fn(() => 'data:image/png;base64,FAKECHARTDATA');
+    target.appendChild(canvas);
+    document.body.appendChild(target);
+
+    await printElement(target, { snapshotCanvases: false, cleanupDelay: 0 });
+
+    const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    expect(iframe.contentDocument?.querySelector('canvas')).not.toBeNull();
+    expect(iframe.contentDocument?.querySelector('img')).toBeNull();
+    expect(canvas.toDataURL).not.toHaveBeenCalled();
+  });
+
+  it('falls back to leaving the cloned canvas empty if toDataURL throws (e.g. tainted canvas)', async () => {
+    const target = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.toDataURL = vi.fn(() => {
+      throw new DOMException('tainted', 'SecurityError');
+    });
+    target.appendChild(canvas);
+    document.body.appendChild(target);
+
+    await expect(printElement(target, { cleanupDelay: 0 })).resolves.not.toThrow();
+
+    const iframe = document.getElementById('__react-print-section-iframe__') as HTMLIFrameElement;
+    expect(iframe.contentDocument?.querySelector('canvas')).not.toBeNull();
+  });
 });
 
 describe('printElementById', () => {
