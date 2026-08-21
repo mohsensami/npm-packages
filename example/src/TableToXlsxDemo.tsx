@@ -20,6 +20,25 @@ const columns: ExportColumn<User>[] = [
   { header: 'Role', accessor: (row) => row.role.toUpperCase() },
 ];
 
+/** Same columns, but each one gets its own color and the header row is bold + white text. */
+const styledColumns: ExportColumn<User>[] = [
+  {
+    header: 'Full name',
+    accessor: 'name',
+    style: { fill: '#DDEBFF', header: { fill: '#1D4ED8', fontColor: '#FFFFFF', bold: true } },
+  },
+  {
+    header: 'Email',
+    accessor: 'email',
+    style: { fill: '#FDE68A', header: { fill: '#B45309', fontColor: '#FFFFFF', bold: true } },
+  },
+  {
+    header: 'Role',
+    accessor: (row) => row.role.toUpperCase(),
+    style: { fill: '#DFF5E1', header: { fill: '#15803D', fontColor: '#FFFFFF', bold: true } },
+  },
+];
+
 /**
  * Demonstrates the two ways to use `react-table-to-xlsx`:
  *
@@ -71,6 +90,24 @@ export function TableToXlsxDemo() {
       <button type="button" onClick={() => exportTable()}>
         Download users (from table)
       </button>
+
+      <h3 style={{ marginTop: 24 }}>3. Column colors + a filters/description row</h3>
+      <p>
+        Each column gets its own fill color (with a bolder color on just the header cell), and a
+        merged note row is inserted above the header describing what's in the export.
+      </p>
+      <ExportTableButton
+        data={users}
+        columns={styledColumns}
+        fileName="users-styled.xlsx"
+        sheetName="Users"
+        extraRows={[
+          { values: 'Active users report', bold: true, fill: '#E5E7EB', align: 'center' },
+          'Filters: Role = Engineer, Admiral, Researcher · Exported ' + new Date().toLocaleDateString(),
+        ]}
+      >
+        Download users (colored + filter note)
+      </ExportTableButton>
     </section>
   );
 }

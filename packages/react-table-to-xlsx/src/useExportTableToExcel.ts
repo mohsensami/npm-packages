@@ -1,6 +1,6 @@
 import { useCallback, type RefObject } from 'react';
 import { exportDataToExcel, exportDomTableToExcel } from './exportTable';
-import type { ExportColumn } from './types';
+import type { ExportColumn, ExtraRow, CellStyle } from './types';
 
 export interface UseExportTableToExcelOptions<T extends Record<string, any>> {
   /** Row data to export. Ignored if `tableRef` is also provided and mounted. */
@@ -13,6 +13,13 @@ export interface UseExportTableToExcelOptions<T extends Record<string, any>> {
   fileName?: string;
   /** Default worksheet name. */
   sheetName?: string;
+  /**
+   * One or more rows inserted above the header/first row — e.g. a title,
+   * description, or a summary of filters applied to the table.
+   */
+  extraRows?: (ExtraRow | string)[];
+  /** Per-column styling, positioned by column index. Only used with `tableRef`. */
+  columnStyles?: (CellStyle | undefined)[];
 }
 
 /**
@@ -34,18 +41,38 @@ export function useExportTableToExcel<T extends Record<string, any>>(
       const sheetName = overrides?.sheetName ?? options?.sheetName ?? 'Sheet1';
 
       if (options?.tableRef?.current) {
-        exportDomTableToExcel({ table: options.tableRef.current, fileName, sheetName });
+        exportDomTableToExcel({
+          table: options.tableRef.current,
+          fileName,
+          sheetName,
+          extraRows: options.extraRows,
+          columnStyles: options.columnStyles,
+        });
         return;
       }
 
       if (options?.data) {
-        exportDataToExcel({ data: options.data, columns: options.columns, fileName, sheetName });
+        exportDataToExcel({
+          data: options.data,
+          columns: options.columns,
+          fileName,
+          sheetName,
+          extraRows: options.extraRows,
+        });
         return;
       }
 
       throw new Error('useExportTableToExcel: provide either `data` or `tableRef`.');
     },
-    [options?.data, options?.columns, options?.tableRef, options?.fileName, options?.sheetName]
+    [
+      options?.data,
+      options?.columns,
+      options?.tableRef,
+      options?.fileName,
+      options?.sheetName,
+      options?.extraRows,
+      options?.columnStyles,
+    ]
   );
 
   return { exportToExcel };

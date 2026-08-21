@@ -1,64 +1,193 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import * as XLSX from 'xlsx';
-import { exportDataToExcel, exportDomTableToExcel } from './exportTable';
+import { describe, it, expect } from 'vitest';
+import {
+  exportDataToExcel,
+  exportDomTableToExcel,
+  buildWorkbookFromData,
+  buildWorkbookFromTable,
+} from './exportTable';
 
-vi.mock('xlsx', () => ({
-  utils: {
-    json_to_sheet: vi.fn(() => ({ mockSheet: true })),
-    table_to_sheet: vi.fn(() => ({ mockSheet: true })),
-    book_new: vi.fn(() => ({ mockBook: true })),
-    book_append_sheet: vi.fn(),
-  },
-  writeFile: vi.fn(),
-}));
+// These use the real xlsx-js-style engine against `buildWorkbookFrom*`
+// (which stop short of triggering a download), so cell values, merges, and
+// `.s` style objects are all exercised end-to-end.
+function sheetOf(wb: ReturnType<typeof buildWorkbookFromData>) {
+  return wb.Sheets[wb.SheetNames[0]];
+}
 
-describe('exportDataToExcel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+function cellOf(wb: ReturnType<typeof buildWorkbookFromData>, addr: string) {
+  return (sheetOf(wb) as any)[addr];
+}
 
+describe('buildWorkbookFromData', () => {
   it('exports plain data rows without a columns mapping', () => {
     const data = [{ name: 'Ada', email: 'ada@example.com' }];
-    exportDataToExcel({ data, fileName: 'users.xlsx' });
+    const wb = buildWorkbookFromData({ data });
 
-    expect(XLSX.utils.json_to_sheet).toHaveBeenCalledWith(data);
-    expect(XLSX.utils.book_append_sheet).toHaveBeenCalledWith(
-      { mockBook: true },
-      { mockSheet: true },
-      'Sheet1'
-    );
-    expect(XLSX.writeFile).toHaveBeenCalledWith({ mockBook: true }, 'users.xlsx');
+    expect(cellOf(wb, 'A1').v).toBe('name');
+    expect(cellOf(wb, 'A2').v).toBe('Ada');
+    expect(cellOf(wb, 'B2').v).toBe('ada@example.com');
   });
 
   it('maps columns using accessor keys and accessor functions', () => {
     const data = [{ id: 1, fullName: 'Ada Lovelace', createdAt: '2024-01-01' }];
-    exportDataToExcel({
+    const wb = buildWorkbookFromData({
       data,
       columns: [
         { header: 'Name', accessor: 'fullName' },
         { header: 'Year', accessor: (row) => row.createdAt.slice(0, 4) },
       ],
-      fileName: 'report',
     });
 
-    expect(XLSX.utils.json_to_sheet).toHaveBeenCalledWith([
-      { Name: 'Ada Lovelace', Year: '2024' },
-    ]);
-    // fileName should get .xlsx appended automatically when missing
-    expect(XLSX.writeFile).toHaveBeenCalledWith({ mockBook: true }, 'report.xlsx');
+    expect(cellOf(wb, 'A1').v).toBe('Name');
+    expect(cellOf(wb, 'B1').v).toBe('Year');
+    expect(cellOf(wb, 'A2').v).toBe('Ada Lovelace');
+    expect(cellOf(wb, 'B2').v).toBe('2024');
+  });
+
+  it('colors a column (header + data cells) via ExportColumn.style', () => {
+    const data = [{ name: 'Ada' }, { name: 'Grace' }];
+    const wb = buildWorkbookFromData({
+      data,
+      columns: [{ header: 'Name', accessor: 'name', style: { fill: '#4F46E5', bold: true } }],
+    });
+
+    expect(cellOf(wb, 'A1').s.fill.fgColor.rgb).toBe('4F46E5');
+    expect(cellOf(wb, 'A1').s.font.bold).toBe(true);
+    expect(cellOf(wb, 'A2').s.fill.fgColor.rgb).toBe('4F46E5');
+    expect(cellOf(wb, 'A3').s.fill.fgColor.rgb).toBe('4F46E5');
+  });
+
+  it('lets the header style override the column style', () => {
+    const data = [{ name: 'Ada' }];
+    const wb = buildWorkbookFromData({
+      data,
+      columns: [
+        {
+          header: 'Name',
+          accessor: 'name',
+          style: { fill: '#DDEBFF', header: { fill: '#4F46E5', fontColor: '#FFFFFF' } },
+        },
+      ],
+    });
+
+    expect(cellOf(wb, 'A1').s.fill.fgColor.rgb).toBe('4F46E5');
+    expect(cellOf(wb, 'A1').s.font.color.rgb).toBe('FFFFFF');
+    // data cell keeps the column-level (non-header) fill
+    expect(cellOf(wb, 'A2').s.fill.fgColor.rgb).toBe('DDEBFF');
+  });
+
+  it('accepts hex colors with or without a leading #', () => {
+    const wb = buildWorkbookFromData({
+      data: [{ name: 'Ada' }],
+      columns: [{ header: 'Name', accessor: 'name', style: { fill: 'abcdef' } }],
+    });
+    expect(cellOf(wb, 'A2').s.fill.fgColor.rgb).toBe('ABCDEF');
+  });
+
+  it('prepends a single string extraRow as a merged title row', () => {
+    const data = [{ name: 'Ada', role: 'Engineer' }, { name: 'Grace', role: 'Admiral' }];
+    const wb = buildWorkbookFromData({
+      data,
+      columns: [
+        { header: 'Name', accessor: 'name' },
+        { header: 'Role', accessor: 'role' },
+      ],
+      extraRows: ['Filters: Status = Active'],
+    });
+
+    // header/data rows are pushed down by one row
+    expect(cellOf(wb, 'A1').v).toBe('Filters: Status = Active');
+    expect(cellOf(wb, 'A2').v).toBe('Name');
+    expect(cellOf(wb, 'A3').v).toBe('Ada');
+    expect(cellOf(wb, 'A4').v).toBe('Grace');
+    expect(sheetOf(wb)['!merges']).toContainEqual({ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } });
+  });
+
+  it('prepends multiple extraRows, each with its own style, above the header', () => {
+    const data = [{ name: 'Ada' }];
+    const wb = buildWorkbookFromData({
+      data,
+      columns: [{ header: 'Name', accessor: 'name' }],
+      extraRows: [
+        { values: 'Monthly Report', bold: true, fill: '#FDE68A' },
+        { values: 'Filters: Region = EU' },
+      ],
+    });
+
+    expect(cellOf(wb, 'A1').v).toBe('Monthly Report');
+    expect(cellOf(wb, 'A1').s.font.bold).toBe(true);
+    expect(cellOf(wb, 'A1').s.fill.fgColor.rgb).toBe('FDE68A');
+    expect(cellOf(wb, 'A2').v).toBe('Filters: Region = EU');
+    expect(cellOf(wb, 'A3').v).toBe('Name');
+    expect(cellOf(wb, 'A4').v).toBe('Ada');
+  });
+
+  it('writes an array-valued extraRow across separate cells instead of merging', () => {
+    const data = [{ name: 'Ada' }];
+    const wb = buildWorkbookFromData({
+      data,
+      columns: [{ header: 'Name', accessor: 'name' }],
+      extraRows: [{ values: ['Generated by', 'Admin'] }],
+    });
+
+    expect(cellOf(wb, 'A1').v).toBe('Generated by');
+    expect(cellOf(wb, 'B1').v).toBe('Admin');
+    expect(sheetOf(wb)['!merges'] ?? []).toHaveLength(0);
+  });
+
+  it('uses the given sheet name', () => {
+    const wb = buildWorkbookFromData({ data: [{ name: 'Ada' }], sheetName: 'Users' });
+    expect(wb.SheetNames).toEqual(['Users']);
   });
 });
 
-describe('exportDomTableToExcel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
+describe('buildWorkbookFromTable', () => {
   it('exports an existing DOM table element', () => {
     const table = document.createElement('table');
-    exportDomTableToExcel({ table, fileName: 'dom-table.xlsx' });
+    table.innerHTML = '<tr><td>Name</td></tr><tr><td>Ada</td></tr>';
+    const wb = buildWorkbookFromTable({ table });
 
-    expect(XLSX.utils.table_to_sheet).toHaveBeenCalledWith(table);
-    expect(XLSX.writeFile).toHaveBeenCalledWith({ mockBook: true }, 'dom-table.xlsx');
+    expect(cellOf(wb, 'A1').v).toBe('Name');
+    expect(cellOf(wb, 'A2').v).toBe('Ada');
+  });
+
+  it('colors a column by index via columnStyles', () => {
+    const table = document.createElement('table');
+    table.innerHTML =
+      '<tr><td>Name</td><td>Status</td></tr><tr><td>Ada</td><td>Active</td></tr>';
+    const wb = buildWorkbookFromTable({
+      table,
+      columnStyles: [undefined, { fill: '#DFF5E1' }],
+    });
+
+    expect(cellOf(wb, 'A1').s).toBeUndefined();
+    expect(cellOf(wb, 'B1').s.fill.fgColor.rgb).toBe('DFF5E1');
+    expect(cellOf(wb, 'B2').s.fill.fgColor.rgb).toBe('DFF5E1');
+  });
+
+  it('prepends extraRows above a DOM-table export', () => {
+    const table = document.createElement('table');
+    table.innerHTML = '<tr><td>Name</td></tr><tr><td>Ada</td></tr>';
+    const wb = buildWorkbookFromTable({
+      table,
+      extraRows: ['Exported from the dashboard'],
+    });
+
+    expect(cellOf(wb, 'A1').v).toBe('Exported from the dashboard');
+    expect(cellOf(wb, 'A2').v).toBe('Name');
+    expect(cellOf(wb, 'A3').v).toBe('Ada');
+  });
+});
+
+describe('exportDataToExcel / exportDomTableToExcel (download trigger)', () => {
+  it('exportDataToExcel does not throw and appends .xlsx to the file name', () => {
+    expect(() =>
+      exportDataToExcel({ data: [{ name: 'Ada' }], fileName: 'no-extension' })
+    ).not.toThrow();
+  });
+
+  it('exportDomTableToExcel does not throw', () => {
+    const table = document.createElement('table');
+    table.innerHTML = '<tr><td>Ada</td></tr>';
+    expect(() => exportDomTableToExcel({ table, fileName: 'report.xlsx' })).not.toThrow();
   });
 });

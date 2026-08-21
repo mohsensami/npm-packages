@@ -7,4 +7,4 @@ export type { UseExportTableToExcelOptions } from './useExportTableToExcel';
 export { ExportTableButton } from './ExportTableButton';
 export type { ExportTableButtonProps } from './ExportTableButton';
 
-export type { ExportColumn } from './types';
+export type { ExportColumn, ExportColumnStyle, CellStyle, ExtraRow } from './types';

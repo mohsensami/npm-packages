@@ -67,6 +67,49 @@ describe('useExportTableToExcel', () => {
       columns: undefined,
       fileName: 'override.xlsx',
       sheetName: 'Custom',
+      extraRows: undefined,
+    });
+  });
+
+  it('passes extraRows through for a data export', () => {
+    const data = [{ name: 'Ada' }];
+    const { result } = renderHook(() =>
+      useExportTableToExcel({ data, extraRows: ['Filters: Status = Active'] })
+    );
+
+    result.current.exportToExcel();
+
+    expect(exportModule.exportDataToExcel).toHaveBeenCalledWith({
+      data,
+      columns: undefined,
+      fileName: 'table.xlsx',
+      sheetName: 'Sheet1',
+      extraRows: ['Filters: Status = Active'],
+    });
+  });
+
+  it('passes extraRows and columnStyles through for a tableRef export', () => {
+    const tableEl = document.createElement('table');
+    const tableRef = createRef<HTMLTableElement>();
+    tableRef.current = tableEl;
+    const columnStyles = [undefined, { fill: '#DFF5E1' }];
+
+    const { result } = renderHook(() =>
+      useExportTableToExcel({
+        tableRef,
+        extraRows: ['Exported today'],
+        columnStyles,
+      })
+    );
+
+    result.current.exportToExcel();
+
+    expect(exportModule.exportDomTableToExcel).toHaveBeenCalledWith({
+      table: tableEl,
+      fileName: 'table.xlsx',
+      sheetName: 'Sheet1',
+      extraRows: ['Exported today'],
+      columnStyles,
     });
   });
 });

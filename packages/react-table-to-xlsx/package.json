@@ -1,6 +1,6 @@
 {
   "name": "@mohsensami/react-table-to-xlsx",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "React + TypeScript utilities and components to export HTML tables or data arrays to downloadable .xlsx files",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -40,7 +40,7 @@
     "react": ">=16.8.0"
   },
   "dependencies": {
-    "xlsx": "^0.18.5"
+    "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.0",

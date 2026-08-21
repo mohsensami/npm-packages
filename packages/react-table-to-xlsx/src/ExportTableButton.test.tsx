@@ -25,6 +25,32 @@ describe('ExportTableButton', () => {
       columns: undefined,
       fileName: 'users.xlsx',
       sheetName: 'Sheet1',
+      extraRows: undefined,
+    });
+  });
+
+  it('passes extraRows and columnStyles through to a tableRef export', () => {
+    const tableEl = document.createElement('table');
+    const tableRef = { current: tableEl };
+    const columnStyles = [{ fill: '#DFF5E1' }];
+
+    render(
+      <ExportTableButton
+        tableRef={tableRef}
+        fileName="report.xlsx"
+        extraRows={['Filters: Region = EU']}
+        columnStyles={columnStyles}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(exportModule.exportDomTableToExcel).toHaveBeenCalledWith({
+      table: tableEl,
+      fileName: 'report.xlsx',
+      sheetName: 'Sheet1',
+      extraRows: ['Filters: Region = EU'],
+      columnStyles,
     });
   });
 
